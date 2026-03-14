@@ -1,5 +1,9 @@
 # Neural Network Toy Model
 
+🚀 **Live Demo:** [https://nnmodel.streamlit.app/](https://nnmodel.streamlit.app/)
+
+![App Demo](visuals/app_demo.png)
+
 An interactive web application built with [Streamlit](https://streamlit.io/) and [JAX](https://github.com/google/jax) to train and visualize a simple feed-forward neural network.
 
 This app is designed for educational purposes, allowing you to explore how a neural network learns a synthetic 3D surface mapping. Specifically, it uses a simplified architecture where the **output layer has no learnable weights**—the final prediction is simply the **sum** of all hidden layer activations.
