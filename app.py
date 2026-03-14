@@ -21,7 +21,7 @@ The final prediction is simply the **sum** of all the hidden layer activations.
 st.sidebar.header("1. Architecture")
 input_dim = 2 
 hidden_neurons = st.sidebar.slider("Hidden Layer Neurons", min_value=1, max_value=50, value=2, step=1)
-activation_name = st.sidebar.selectbox("Activation Function", ["ReLU", "Sigmoid"])
+activation_name = st.sidebar.selectbox("Activation Function", ["ReLU", "Tanh"])
 
 st.sidebar.header("2. Synthetic Data")
 a_slope = st.sidebar.slider("Slope 'a' (for Vector [0])", min_value=-5.0, max_value=5.0, value=1.0, step=0.1)
@@ -38,7 +38,7 @@ if add_outliers:
 
 st.sidebar.header("4. Training Parameters")
 lr = st.sidebar.number_input("Learning Rate", min_value=0.001, max_value=1.0, value=0.1, step=0.01, format="%.3f")
-epochs = st.sidebar.slider("Training Steps", min_value=10, max_value=5000, value=1000, step=50)
+epochs = st.sidebar.slider("Training Steps", min_value=10, max_value=10000, value=1000, step=50)
 
 st.sidebar.header("5. Regularization")
 reg_type = st.sidebar.selectbox("Regularization Type", ["None", "L1", "L2", "Inverse L1", "Inverse L2", "Log"])
@@ -53,10 +53,10 @@ st.sidebar.markdown("By [@ineporozhnii (GitHub Page)](https://github.com/ineporo
 def relu(x):
     return jnp.maximum(0.0, x)
 
-def sigmoid(x):
-    return 1.0 / (1.0 + jnp.exp(-x))
+def tanh(x):
+    return jnp.tanh(x)
 
-act_fn = relu if activation_name == "ReLU" else sigmoid
+act_fn = relu if activation_name == "ReLU" else tanh
 
 def true_function(X_matrix):
     slopes = jnp.array([a_slope, b_slope])

@@ -10,7 +10,7 @@ This app is designed for educational purposes, allowing you to explore how a neu
 
 ## Features
 
-* **Interactive Architecture Tuning**: Adjust the number of hidden neurons and toggle between playing with `ReLU` and `Sigmoid` activations.
+* **Interactive Architecture Tuning**: Adjust the number of hidden neurons and toggle between playing with `ReLU` and `Tanh` activations.
 * **Custom Synthetic Data**: Generate a synthetic dataset by controlling slopes, adding Gaussian noise, and injecting outliers.
 * **Regularization Options**: Experiment with standard regularizations (L1, L2) and non-standard penalties (Inverse L1, Inverse L2, Log) to see their effect on weight dynamics.
 * **Real-time Training & Visualization**: Watch the model train in real-time. Visualize the loss curve, tracking training loss vs. validation MSE.
