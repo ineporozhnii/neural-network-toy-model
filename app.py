@@ -44,6 +44,9 @@ st.sidebar.header("5. Regularization")
 reg_type = st.sidebar.selectbox("Regularization Type", ["None", "L1", "L2", "Inverse L1", "Inverse L2", "Log"])
 reg_lambda = st.sidebar.number_input("Regularization Strength (Lambda)", min_value=0.0, max_value=1.0, value=0.01, step=0.001, format="%.4f")
 
+st.sidebar.markdown("---")
+st.sidebar.markdown("By [@ineporozhnii (GitHub Page)](https://github.com/ineporozhnii/neural-network-toy-model)", unsafe_allow_html=True)
+
 # ==========================================
 # DATA GENERATION (Fully Vectorized)
 # ==========================================
