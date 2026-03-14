@@ -1,0 +1,6 @@
+streamlit
+jax
+jaxlib
+numpy
+plotly
+pandas
