@@ -62,7 +62,7 @@ def true_function(X_matrix):
     slopes = jnp.array([a_slope, b_slope])
     return jnp.sum(act_fn(X_matrix * slopes), axis=1, keepdims=True)
 
-# 1. Random uniformly sampled data points
+# 1. Random uniformly sampled data points (In-Distribution)
 np.random.seed(42)
 X_train_np = np.random.uniform(-1, 1, size=(n_points, input_dim))
 y_train_clean = np.array(true_function(X_train_np))
@@ -82,7 +82,7 @@ if add_outliers and n_outliers > 0:
     
     y_train_np[outlier_indices] += signs * outlier_magnitude
 
-# 4. High-resolution grid for the 3D surface (Used as pure Validation Data)
+# 4. High-resolution grid for the 3D surface (Used as pure ID Validation Data)
 x_grid = np.linspace(-1, 1, 50)
 y_grid = np.linspace(-1, 1, 50)
 xx, yy = np.meshgrid(x_grid, y_grid)
@@ -90,9 +90,24 @@ xx, yy = np.meshgrid(x_grid, y_grid)
 grid_points = np.column_stack((xx.ravel(), yy.ravel()))
 zz_true = np.array(true_function(grid_points)).reshape(50, 50)
 
-# Validation set setup
+# Validation set setup (In-Distribution)
 X_val_np = grid_points
 y_val_np = zz_true.reshape(-1, 1)
+
+# 5. Out-of-Distribution (OOD) Data Generation
+# Fixed seed for OOD to guarantee exact same points every run
+ood_rng = np.random.RandomState(999)
+n_ood = 500
+
+# Randomly assign each point to either the negative interval [-100, -10] or positive [10, 100]
+intervals_x = ood_rng.choice([0, 1], size=n_ood)
+intervals_y = ood_rng.choice([0, 1], size=n_ood)
+
+x_ood = np.where(intervals_x == 0, ood_rng.uniform(-100, -10, n_ood), ood_rng.uniform(10, 100, n_ood))
+y_ood = np.where(intervals_y == 0, ood_rng.uniform(-100, -10, n_ood), ood_rng.uniform(10, 100, n_ood))
+
+X_ood_np = np.column_stack((x_ood, y_ood))
+y_ood_np = np.array(true_function(X_ood_np))
 
 # ==========================================
 # VISUALIZE DATA
@@ -195,9 +210,14 @@ if st.button("🚀 Train Model", type="primary"):
     y_jnp = jnp.array(y_train_np)
     X_val_jnp = jnp.array(X_val_np)
     y_val_jnp = jnp.array(y_val_np)
+    
+    # OOD arrays
+    X_ood_jnp = jnp.array(X_ood_np)
+    y_ood_jnp = jnp.array(y_ood_np)
 
     loss_history = []
     val_loss_history = []
+    ood_loss_history = []
     w1_history = []
     
     progress_bar = st.progress(0)
@@ -209,6 +229,7 @@ if st.button("🚀 Train Model", type="primary"):
         
         # Calculate pure validation loss (MSE only, no regularization penalty)
         val_loss = mse_loss_fn(params, X_val_jnp, y_val_jnp)
+        ood_loss = mse_loss_fn(params, X_ood_jnp, y_ood_jnp)
         
         # Handle potential NaNs from exploding inverse penalties
         if jnp.isnan(train_loss):
@@ -217,14 +238,15 @@ if st.button("🚀 Train Model", type="primary"):
             
         loss_history.append(float(train_loss))
         val_loss_history.append(float(val_loss))
+        ood_loss_history.append(float(ood_loss))
         
         if step % max(1, epochs // 100) == 0 or step == epochs - 1:
             w1_history.append(np.array(params["W1"]).flatten())
             progress_bar.progress((step + 1) / epochs)
-            status_text.text(f"Training Step: {step+1}/{epochs} | Train Loss (MSE+Reg): {train_loss:.4f} | Val MSE: {val_loss:.4f}")
+            status_text.text(f"Training Step: {step+1}/{epochs} | Train Loss: {train_loss:.4f} | Val MSE: {val_loss:.4f} | OOD MSE: {ood_loss:.4f}")
 
     progress_bar.empty()
-    status_text.success(f"Training Complete! Final Train Loss: {loss_history[-1]:.4f} | Final Val MSE: {val_loss_history[-1]:.4f}")
+    status_text.success(f"Training Complete! Final Train Loss: {loss_history[-1]:.4f} | Final Val MSE: {val_loss_history[-1]:.4f} | Final OOD MSE: {ood_loss_history[-1]:.4f}")
 
     # --- Print Weight Matrices ---
     with st.expander("🔍 View Network Schematic & Final Weight Matrices", expanded=True):
@@ -274,8 +296,16 @@ if st.button("🚀 Train Model", type="primary"):
             x=list(range(len(val_loss_history))), 
             y=val_loss_history, 
             mode='lines', 
-            name='Validation MSE',
+            name='Validation MSE (In-Dist)',
             line=dict(color='darkorange', width=2, dash='dash')
+        ))
+
+        fig_loss.add_trace(go.Scatter(
+            x=list(range(len(ood_loss_history))), 
+            y=ood_loss_history, 
+            mode='lines', 
+            name='OOD Validation MSE',
+            line=dict(color='purple', width=2, dash='dot')
         ))
         
         fig_loss.update_layout(
@@ -370,3 +400,51 @@ if st.button("🚀 Train Model", type="primary"):
         height=600
     )
     st.plotly_chart(fig2, use_container_width=True)
+
+    # --- Out-of-Distribution Validation Section ---
+    st.markdown("---")
+    st.subheader("Out-of-Distribution (OOD) Validation")
+    st.markdown("""
+    This section evaluates how well the model generalizes to data far outside its training distribution. 
+    Points are sampled from $[-100, -10]$ and $[10, 100]$ across both feature dimensions.
+    """)
+    
+    preds_ood = forward(params, X_ood_jnp)
+    mse_ood_final = jnp.mean((preds_ood - y_ood_jnp) ** 2)
+    mae_ood_final = jnp.mean(jnp.abs(preds_ood - y_ood_jnp))
+    
+    m1, m2 = st.columns(2)
+    m1.metric(label="OOD Mean Squared Error (MSE)", value=f"{float(mse_ood_final):.4f}")
+    m2.metric(label="OOD Mean Absolute Error (MAE)", value=f"{float(mae_ood_final):.4f}")
+
+    fig_ood = go.Figure()
+    
+    # Scatter plot of True vs Predicted
+    fig_ood.add_trace(go.Scatter(
+        x=y_ood_np.flatten(),
+        y=np.array(preds_ood).flatten(),
+        mode='markers',
+        marker=dict(color='purple', opacity=0.6, line=dict(width=1, color='indigo')),
+        name='OOD Predictions'
+    ))
+    
+    # Ideal y=x reference line
+    min_val = min(np.min(y_ood_np), np.min(np.array(preds_ood)))
+    max_val = max(np.max(y_ood_np), np.max(np.array(preds_ood)))
+    
+    fig_ood.add_trace(go.Scatter(
+        x=[min_val, max_val],
+        y=[min_val, max_val],
+        mode='lines',
+        line=dict(color='black', dash='dash'),
+        name='Ideal Fit (y=x)'
+    ))
+
+    fig_ood.update_layout(
+        title="Out-of-Distribution: True vs Predicted Values",
+        xaxis_title="True Target Z",
+        yaxis_title="Model Predicted Z",
+        height=500,
+        showlegend=True
+    )
+    st.plotly_chart(fig_ood, use_container_width=True)
